@@ -125,10 +125,11 @@
   const CAMP_PAY_RATE = 0.80;
   const CAMP_DEFAULTS = { 100: 11, 120: 20, 150: 30 };
 
+  // lastEdited: 'norm' → 通常固定・プラチナAUTO / 'plat' → プラチナ固定・通常AUTO
   let tabState = {
-    100: { normSignup: null, campPaid: 11 },
-    120: { normSignup: null, campPaid: 20 },
-    150: { normSignup: null, campPaid: 30 },
+    100: { normSignup: null, platSignup: null, campPaid: 11, lastEdited: 'norm' },
+    120: { normSignup: null, platSignup: null, campPaid: 20, lastEdited: 'norm' },
+    150: { normSignup: null, platSignup: null, campPaid: 30, lastEdited: 'norm' },
   };
   let currentTab = 100;
 
@@ -165,25 +166,39 @@
 
     let normSignup, normPaid, normRevenue, platSignup, platPaid, platRevenue;
 
-    if (state.normSignup === null) {
+    if (state.normSignup === null && state.platSignup === null) {
+      // 初期：2:3 比率で自動配分
       const nonCampTarget = targetRev - campRevenue;
       const avgPaid = (2 * normalPrice + 3 * platPrice) / 5;
       const nonCampPaid = avgPaid > 0 ? Math.ceil(nonCampTarget / avgPaid) : 0;
-      normPaid     = Math.round(nonCampPaid * 2 / 5);
-      platPaid     = nonCampPaid - normPaid;
-      normSignup   = Math.ceil(normPaid / NORM_PAY_RATE);
-      platSignup   = Math.ceil(platPaid / PLAT_PAY_RATE);
-      normRevenue  = normPaid * normalPrice;
-      platRevenue  = platPaid * platPrice;
+      normPaid    = Math.round(nonCampPaid * 2 / 5);
+      platPaid    = nonCampPaid - normPaid;
+      normSignup  = Math.ceil(normPaid / NORM_PAY_RATE);
+      platSignup  = Math.ceil(platPaid / PLAT_PAY_RATE);
+      normRevenue = normPaid * normalPrice;
+      platRevenue = platPaid * platPrice;
       state.normSignup = normSignup;
-    } else {
-      normSignup   = state.normSignup;
-      normPaid     = Math.floor(normSignup * NORM_PAY_RATE);
-      normRevenue  = normPaid * normalPrice;
+      state.platSignup = platSignup;
+    } else if (state.lastEdited === 'norm') {
+      // 通常固定 → プラチナ AUTO
+      normSignup  = state.normSignup;
+      normPaid    = Math.floor(normSignup * NORM_PAY_RATE);
+      normRevenue = normPaid * normalPrice;
       const remain = targetRev - campRevenue - normRevenue;
-      platPaid     = platPrice > 0 ? Math.max(0, Math.ceil(remain / platPrice)) : 0;
-      platSignup   = Math.ceil(platPaid / PLAT_PAY_RATE);
-      platRevenue  = platPaid * platPrice;
+      platPaid    = platPrice > 0 ? Math.max(0, Math.ceil(remain / platPrice)) : 0;
+      platSignup  = Math.ceil(platPaid / PLAT_PAY_RATE);
+      platRevenue = platPaid * platPrice;
+      state.platSignup = platSignup;
+    } else {
+      // プラチナ固定 → 通常 AUTO
+      platSignup  = state.platSignup;
+      platPaid    = Math.floor(platSignup * PLAT_PAY_RATE);
+      platRevenue = platPaid * platPrice;
+      const remain = targetRev - campRevenue - platRevenue;
+      normPaid    = normalPrice > 0 ? Math.max(0, Math.ceil(remain / normalPrice)) : 0;
+      normSignup  = Math.ceil(normPaid / NORM_PAY_RATE);
+      normRevenue = normPaid * normalPrice;
+      state.normSignup = normSignup;
     }
 
     const totalSignup = normSignup + platSignup + campSignup;
@@ -252,32 +267,36 @@
 
       <!-- 申込人数入力 -->
       <div class="bg-gray-50 rounded-2xl border border-gray-200 p-5 mb-6">
-        <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-4">📝 申込人数 設定</p>
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-gray-500 text-xs font-bold uppercase tracking-widest">📝 申込人数 設定</p>
+          <p class="text-gray-400 text-xs">変更した方が固定 → もう一方が <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold text-xs">AUTO</span> で自動調整</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-white border border-emerald-200 rounded-xl p-4">
-            <p class="text-emerald-600 text-xs font-bold mb-2">通常コース 申込人数 <span class="font-normal text-gray-400">（変更可）</span></p>
+          <div class="bg-white border-2 ${tabState[currentTab].lastEdited === 'plat' ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-emerald-200'} rounded-xl p-4 relative">
+            ${tabState[currentTab].lastEdited === 'plat' ? '<span class="absolute -top-2.5 left-3 text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">AUTO</span>' : ''}
+            <p class="text-emerald-600 text-xs font-bold mb-2">通常コース 申込人数</p>
             <input type="number" id="normSignupInput_${currentTab}" value="${d.normSignup}" min="0"
               oninput="onNormChange(${currentTab}, this.value)"
-              class="w-full border border-emerald-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-emerald-500 text-center">
+              class="w-full border border-emerald-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-emerald-500 text-center ${tabState[currentTab].lastEdited === 'plat' ? 'bg-emerald-50' : 'bg-white'}">
             <p class="text-gray-400 text-xs text-center mt-2">→ 入金 <strong class="text-emerald-600">${d.normPaid}</strong> 名</p>
           </div>
-          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-amber-600 text-xs font-bold">プラチナコース 申込人数</p>
-              <span class="text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-bold">AUTO</span>
-            </div>
-            <div class="w-full border border-amber-200 rounded-lg px-3 py-3 text-2xl font-black text-amber-700 text-center bg-amber-50 select-none">${d.platSignup}</div>
+          <div class="bg-white border-2 ${tabState[currentTab].lastEdited === 'norm' ? 'border-amber-300 ring-2 ring-amber-100' : 'border-amber-200'} rounded-xl p-4 relative">
+            ${tabState[currentTab].lastEdited === 'norm' ? '<span class="absolute -top-2.5 left-3 text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">AUTO</span>' : ''}
+            <p class="text-amber-600 text-xs font-bold mb-2">プラチナコース 申込人数</p>
+            <input type="number" id="platSignupInput_${currentTab}" value="${d.platSignup}" min="0"
+              oninput="onPlatChange(${currentTab}, this.value)"
+              class="w-full border border-amber-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-amber-500 text-center ${tabState[currentTab].lastEdited === 'norm' ? 'bg-amber-50' : 'bg-white'}">
             <p class="text-gray-400 text-xs text-center mt-2">→ 入金 <strong class="text-amber-600">${d.platPaid}</strong> 名</p>
           </div>
-          <div class="bg-white border border-rose-200 rounded-xl p-4">
-            <p class="text-rose-600 text-xs font-bold mb-2">合宿コース 入金人数 <span class="font-normal text-gray-400">（変更可）</span></p>
+          <div class="bg-white border-2 border-rose-200 rounded-xl p-4">
+            <p class="text-rose-600 text-xs font-bold mb-2">合宿コース 入金人数</p>
             <input type="number" id="campPaidInput_${currentTab}" value="${d.campPaid}" min="0"
               oninput="onCampChange(${currentTab}, this.value)"
               class="w-full border border-rose-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-rose-500 text-center">
             <p class="text-gray-400 text-xs text-center mt-2">→ 申込 <strong class="text-rose-600">${d.campSignup}</strong> 名</p>
           </div>
         </div>
-        <p class="text-gray-400 text-xs mt-3 text-center">通常または合宿の人数を変更すると、プラチナコースが目標金額に合わせて自動調整されます</p>
+        <p class="text-gray-400 text-xs mt-3 text-center">通常 or プラチナを変更した方が固定され、もう一方が目標金額に合わせて自動調整されます</p>
       </div>
 
       <!-- 集客人数 -->
@@ -441,11 +460,19 @@
 
   function onNormChange(rate, val) {
     tabState[rate].normSignup = Math.max(0, parseInt(val) || 0);
+    tabState[rate].lastEdited = 'norm';
+    if (currentTab === rate) render();
+  }
+
+  function onPlatChange(rate, val) {
+    tabState[rate].platSignup = Math.max(0, parseInt(val) || 0);
+    tabState[rate].lastEdited = 'plat';
     if (currentTab === rate) render();
   }
 
   function onCampChange(rate, val) {
     tabState[rate].campPaid = Math.max(0, parseInt(val) || 0);
+    // 合宿変更時は lastEdited をそのまま維持（直前に固定した方に合わせる）
     if (currentTab === rate) render();
   }
 
@@ -469,9 +496,9 @@
     document.getElementById('venueNormLabel').textContent = (120 * nm).toFixed(0);
     document.getElementById('venuePlatLabel').textContent = (120 * pm).toFixed(0);
     tabState = {
-      100: { normSignup: null, campPaid: CAMP_DEFAULTS[100] },
-      120: { normSignup: null, campPaid: CAMP_DEFAULTS[120] },
-      150: { normSignup: null, campPaid: CAMP_DEFAULTS[150] },
+      100: { normSignup: null, platSignup: null, campPaid: CAMP_DEFAULTS[100], lastEdited: 'norm' },
+      120: { normSignup: null, platSignup: null, campPaid: CAMP_DEFAULTS[120], lastEdited: 'norm' },
+      150: { normSignup: null, platSignup: null, campPaid: CAMP_DEFAULTS[150], lastEdited: 'norm' },
     };
     render();
   }
