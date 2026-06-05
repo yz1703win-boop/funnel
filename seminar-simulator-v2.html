@@ -137,9 +137,9 @@
   const CAMP_DEFAULTS = { 100: 14, 120: 25, 150: 38 };
 
   let tabState = {
-    100: { normSignup: null, platSignup: null, campSignup: 14, lastEdited: 'norm' },
-    120: { normSignup: null, platSignup: null, campSignup: 25, lastEdited: 'norm' },
-    150: { normSignup: null, platSignup: null, campSignup: 38, lastEdited: 'norm' },
+    100: { normSignup: null, platSignup: null, campSignup: 14, lastEdited: 'norm', extraNorm: 0, extraCamp: 0 },
+    120: { normSignup: null, platSignup: null, campSignup: 25, lastEdited: 'norm', extraNorm: 1, extraCamp: 1 },
+    150: { normSignup: null, platSignup: null, campSignup: 38, lastEdited: 'norm', extraNorm: 2, extraCamp: 2 },
   };
   let currentTab = 100;
 
@@ -217,10 +217,13 @@
     const rTotalTax   = rTotal * 1.1;
     const achRate     = targetRev > 0 ? rTotal / targetRev * 100 : 0;
 
+    const extraNorm   = state.extraNorm;
+    const extraCamp   = state.extraCamp;
     const eAdv        = 1500;
-    const eVenueNorm  = 120 * normalMonths;
+    const eVenueNorm  = 120 * normalMonths + 140 * extraNorm;
     const eVenuePlat  = 120 * platMonths;
-    const eVenueTotal = eVenueNorm + eVenuePlat;
+    const eVenueExtraCamp = 10 * extraCamp;
+    const eVenueTotal = eVenueNorm + eVenuePlat + eVenueExtraCamp;
     const eCamp       = 10;
     const ePromo      = 100;
     const eMisc       = 250;
@@ -230,7 +233,7 @@
     const expForSharing  = eAdv + eVenueTotal + ePromo + eMisc;
     const instrExpBurden = expForSharing * 0.30;
     const instrNet       = Math.max(0, instrGross - instrExpBurden);
-    const eTotal     = eAdv + eVenueTotal + eCamp + ePromo + eMisc + eTuning + instrNet;
+    const eTotal     = eAdv + eVenueTotal + eCamp + eVenueExtraCamp + ePromo + eMisc + eTuning + instrNet;
     const profit     = rTotal - eTotal;
     const profitRate = rTotal > 0 ? profit / rTotal * 100 : 0;
 
@@ -247,6 +250,7 @@
       totalSignup, totalPaid,
       rNorm: normRevenue, rPlat: platRevenue, rCamp: campRevenue,
       rTotal, rTotalTax, achRate,
+      extraNorm, extraCamp, eVenueExtraCamp,
       eAdv, eVenueNorm, eVenuePlat, eVenueTotal, eCamp, ePromo, eMisc, eTuning,
       instrGross, instrExpBurden, instrNet, appliedRate, expForSharing,
       eTotal, profit, profitRate,
@@ -450,6 +454,38 @@
         <p class="text-gray-400 text-xs mt-3 text-center">通常 or プラチナを変更した方が固定され、もう一方が目標金額に合わせて自動調整されます</p>
       </div>
 
+      <!-- 追加コース・会場費 -->
+      <div class="bg-amber-50 rounded-2xl border border-amber-200 p-5 mb-6">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-lg">🏢</span>
+          <p class="text-amber-700 text-xs font-bold uppercase tracking-widest">追加コース 会場費設定</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white rounded-xl border-2 border-emerald-200 p-4">
+            <p class="text-emerald-600 text-xs font-bold mb-1">通常コース 追加</p>
+            <p class="text-gray-400 text-xs mb-3">1コース増えるごとに +140万</p>
+            <div class="flex items-center gap-2">
+              <input type="number" id="extraNormInput_${currentTab}" value="${d.extraNorm}" min="0"
+                oninput="onExtraNormChange(${currentTab}, this.value)"
+                class="w-full border border-emerald-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-emerald-500 text-center bg-white">
+              <span class="text-gray-500 text-sm font-bold">コース</span>
+            </div>
+            <p class="text-emerald-600 text-xs text-center mt-2 font-semibold">追加会場費 <strong>${fmtM(140 * d.extraNorm)}</strong></p>
+          </div>
+          <div class="bg-white rounded-xl border-2 border-rose-200 p-4">
+            <p class="text-rose-600 text-xs font-bold mb-1">合宿コース 追加</p>
+            <p class="text-gray-400 text-xs mb-3">1コース増えるごとに +10万</p>
+            <div class="flex items-center gap-2">
+              <input type="number" id="extraCampInput_${currentTab}" value="${d.extraCamp}" min="0"
+                oninput="onExtraCampChange(${currentTab}, this.value)"
+                class="w-full border border-rose-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-rose-500 text-center bg-white">
+              <span class="text-gray-500 text-sm font-bold">コース</span>
+            </div>
+            <p class="text-rose-600 text-xs text-center mt-2 font-semibold">追加会場費 <strong>${fmtM(10 * d.extraCamp)}</strong></p>
+          </div>
+        </div>
+      </div>
+
       <!-- コース別 -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
         <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
@@ -516,7 +552,10 @@
               <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eAdv)}</span>
             </div>
             <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100">
-              <div><span class="text-gray-700 text-sm">会場代（通常）</span><span class="text-emerald-500 text-xs ml-2">月120万×${d.normalMonths}ヶ月</span></div>
+              <div>
+                <span class="text-gray-700 text-sm">会場代（通常）</span>
+                <span class="text-emerald-500 text-xs ml-2">月120万×${d.normalMonths}ヶ月${d.extraNorm > 0 ? ` + 140万×${d.extraNorm}コース` : ''}</span>
+              </div>
               <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eVenueNorm)}</span>
             </div>
             <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-amber-50/50 border border-amber-100">
@@ -527,6 +566,11 @@
               <div><span class="text-gray-700 text-sm">合宿経費</span><span class="text-gray-400 text-xs ml-2">固定</span></div>
               <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eCamp)}</span>
             </div>
+            ${d.extraCamp > 0 ? `
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-rose-50/50 border border-rose-100">
+              <div><span class="text-gray-700 text-sm">会場代（合宿追加）</span><span class="text-rose-500 text-xs ml-2">10万×${d.extraCamp}コース</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eVenueExtraCamp)}</span>
+            </div>` : ''}
             <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-gray-50">
               <div><span class="text-gray-700 text-sm">プロモ交通費</span><span class="text-gray-400 text-xs ml-2">固定</span></div>
               <span class="text-gray-800 font-semibold text-sm">${fmtM(d.ePromo)}</span>
@@ -607,6 +651,16 @@
     if (currentTab === rate) render();
   }
 
+  function onExtraNormChange(rate, val) {
+    tabState[rate].extraNorm = Math.max(0, parseInt(val) || 0);
+    if (currentTab === rate) render();
+  }
+
+  function onExtraCampChange(rate, val) {
+    tabState[rate].extraCamp = Math.max(0, parseInt(val) || 0);
+    if (currentTab === rate) render();
+  }
+
   function onHouseRateChange(rate, val) {
     const n = parseFloat(val);
     if (n > 0) optRateState[rate].house = n;
@@ -644,9 +698,9 @@
     document.getElementById('venueNormLabel').textContent = (120 * nm).toFixed(0);
     document.getElementById('venuePlatLabel').textContent = (120 * pm).toFixed(0);
     tabState = {
-      100: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[100], lastEdited: 'norm' },
-      120: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[120], lastEdited: 'norm' },
-      150: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[150], lastEdited: 'norm' },
+      100: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[100], lastEdited: 'norm', extraNorm: 0, extraCamp: 0 },
+      120: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[120], lastEdited: 'norm', extraNorm: 1, extraCamp: 1 },
+      150: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[150], lastEdited: 'norm', extraNorm: 2, extraCamp: 2 },
     };
     render();
   }
