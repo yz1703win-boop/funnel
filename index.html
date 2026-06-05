@@ -125,11 +125,11 @@
   const CAMP_PAY_RATE = 0.80;
   const AD_LIST_FIXED = 5500;
 
-  // 引き上げ率（申込ベース）
-  const OPT_RATES = {
-    100: { house: 0.025, ad: 0.010 },
-    120: { house: 0.030, ad: 0.015 },
-    150: { house: 0.040, ad: 0.020 },
+  // 引き上げ率（申込ベース）— 変動可能
+  let optRateState = {
+    100: { house: 2.5, ad: 1.0 },
+    120: { house: 2.5, ad: 1.2 },
+    150: { house: 3.0, ad: 1.5 },
   };
 
   // campSignup ベース（入金人数デフォルトを申込換算）
@@ -235,7 +235,7 @@
     const profitRate = rTotal > 0 ? profit / rTotal * 100 : 0;
 
     // OPTリスト逆算
-    const optRates   = OPT_RATES[rate];
+    const optRates   = { house: optRateState[rate].house / 100, ad: optRateState[rate].ad / 100 };
     const adSignup   = Math.round(AD_LIST_FIXED * optRates.ad);
     const houseSignup = Math.max(0, totalSignup - adSignup);
     const houseList  = optRates.house > 0 ? Math.ceil(houseSignup / optRates.house) : 0;
@@ -272,8 +272,8 @@
       150: { badge: 'bg-purple-600', text: 'text-purple-700', light: 'bg-purple-50 border-purple-200', ring: 'border-purple-300', accent: '#7e22ce' },
     }[currentTab];
 
-    const houseRatePct = (d.optRates.house * 100).toFixed(1);
-    const adRatePct    = (d.optRates.ad    * 100).toFixed(1);
+    const houseRatePct = optRateState[currentTab].house.toFixed(1);
+    const adRatePct    = optRateState[currentTab].ad.toFixed(1);
 
     document.getElementById('tabContent').innerHTML = `
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-100">
@@ -328,24 +328,36 @@
             </div>
           </div>
 
-          <!-- 矢印 + 引き上げ率 -->
+          <!-- 矢印 + 引き上げ率（編集可能） -->
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div class="flex flex-col items-center">
-              <div class="w-0.5 h-4 bg-blue-300"></div>
-              <div class="bg-blue-100 border border-blue-300 rounded-lg px-3 py-1.5 text-center">
-                <p class="text-blue-700 text-xs font-black">引き上げ率 ${houseRatePct}%</p>
-                <p class="text-blue-500 text-xs">${fmtN(d.houseList)} × ${houseRatePct}%</p>
+              <div class="w-0.5 h-3 bg-blue-300"></div>
+              <div class="bg-blue-100 border border-blue-300 rounded-xl px-3 py-2 text-center w-full">
+                <p class="text-blue-600 text-xs font-bold mb-1">ハウス 引き上げ率</p>
+                <div class="flex items-center justify-center gap-1">
+                  <input type="number" id="houseRateInput_${currentTab}" value="${houseRatePct}" min="0.1" max="100" step="0.1"
+                    oninput="onHouseRateChange(${currentTab}, this.value)"
+                    class="w-20 border border-blue-300 rounded-lg px-2 py-1 text-lg font-black text-blue-800 text-center focus:outline-none focus:border-blue-500 bg-white">
+                  <span class="text-blue-600 font-bold text-sm">%</span>
+                </div>
+                <p class="text-blue-400 text-xs mt-1">${fmtN(d.houseList)} × ${houseRatePct}%</p>
               </div>
-              <div class="w-0.5 h-4 bg-blue-300"></div>
+              <div class="w-0.5 h-3 bg-blue-300"></div>
               <svg class="text-blue-400 w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
             </div>
             <div class="flex flex-col items-center">
-              <div class="w-0.5 h-4 bg-orange-300"></div>
-              <div class="bg-orange-100 border border-orange-300 rounded-lg px-3 py-1.5 text-center">
-                <p class="text-orange-700 text-xs font-black">引き上げ率 ${adRatePct}%</p>
-                <p class="text-orange-500 text-xs">${fmtN(AD_LIST_FIXED)} × ${adRatePct}%</p>
+              <div class="w-0.5 h-3 bg-orange-300"></div>
+              <div class="bg-orange-100 border border-orange-300 rounded-xl px-3 py-2 text-center w-full">
+                <p class="text-orange-600 text-xs font-bold mb-1">広告 引き上げ率</p>
+                <div class="flex items-center justify-center gap-1">
+                  <input type="number" id="adRateInput_${currentTab}" value="${adRatePct}" min="0.1" max="100" step="0.1"
+                    oninput="onAdRateChange(${currentTab}, this.value)"
+                    class="w-20 border border-orange-300 rounded-lg px-2 py-1 text-lg font-black text-orange-800 text-center focus:outline-none focus:border-orange-500 bg-white">
+                  <span class="text-orange-600 font-bold text-sm">%</span>
+                </div>
+                <p class="text-orange-400 text-xs mt-1">${fmtN(AD_LIST_FIXED)} × ${adRatePct}%</p>
               </div>
-              <div class="w-0.5 h-4 bg-orange-300"></div>
+              <div class="w-0.5 h-3 bg-orange-300"></div>
               <svg class="text-orange-400 w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
             </div>
           </div>
@@ -582,6 +594,18 @@
   function onPlatChange(rate, val) {
     tabState[rate].platSignup = Math.max(0, parseInt(val) || 0);
     tabState[rate].lastEdited = 'plat';
+    if (currentTab === rate) render();
+  }
+
+  function onHouseRateChange(rate, val) {
+    const n = parseFloat(val);
+    if (n > 0) optRateState[rate].house = n;
+    if (currentTab === rate) render();
+  }
+
+  function onAdRateChange(rate, val) {
+    const n = parseFloat(val);
+    if (n > 0) optRateState[rate].ad = n;
     if (currentTab === rate) render();
   }
 
