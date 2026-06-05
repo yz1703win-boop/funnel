@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>セミナー売上シミュレーター</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 min-h-screen p-4 md:p-8">
+<div class="max-w-7xl mx-auto">
+
+  <!-- Header -->
+  <div class="text-center mb-8">
+    <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight mb-1">セミナー売上シミュレーター</h1>
+    <p class="text-blue-300 text-sm">目標額と各コース単価を入力すると、必要集客人数と収支が自動計算されます</p>
+  </div>
+
+  <!-- Input Panel -->
+  <div class="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-6 mb-5">
+    <div class="flex items-center mb-5">
+      <div class="w-1 h-6 bg-blue-400 rounded-full mr-3"></div>
+      <h2 class="text-white font-bold text-lg">基本設定</h2>
+    </div>
+
+    <!-- 目標額 (full width) -->
+    <div class="mb-4">
+      <label class="block text-blue-200 text-xs font-bold uppercase tracking-widest mb-2">目標額（税抜）</label>
+      <div class="relative max-w-xs">
+        <input type="number" id="target" value="15380" min="0" oninput="updateAll()"
+          class="w-full bg-white/15 text-white text-2xl font-black placeholder-white/30 border border-white/25 rounded-xl px-4 py-4 pr-16 focus:outline-none focus:border-blue-400 focus:bg-white/20 transition">
+        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 text-sm font-medium">万円</span>
+      </div>
+    </div>
+
+    <!-- Course prices -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+      <div class="bg-emerald-500/10 border border-emerald-400/25 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+          <label class="text-emerald-200 text-xs font-bold uppercase tracking-widest">通常コース単価（税抜）</label>
+        </div>
+        <div class="relative">
+          <input type="number" id="normalPrice" value="54" min="0" oninput="updateAll()"
+            class="w-full bg-white/15 text-white text-xl font-bold placeholder-white/30 border border-emerald-400/30 rounded-xl px-4 py-3 pr-14 focus:outline-none focus:border-emerald-400 focus:bg-white/20 transition">
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 text-sm">万円</span>
+        </div>
+        <p class="text-emerald-300/60 text-xs mt-2">人数比率: 2</p>
+      </div>
+
+      <div class="bg-amber-500/10 border border-amber-400/25 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-3 h-3 rounded-full bg-amber-400"></span>
+          <label class="text-amber-200 text-xs font-bold uppercase tracking-widest">プラチナコース単価（税抜）</label>
+        </div>
+        <div class="relative">
+          <input type="number" id="platPrice" value="88" min="0" oninput="updateAll()"
+            class="w-full bg-white/15 text-white text-xl font-bold placeholder-white/30 border border-amber-400/30 rounded-xl px-4 py-3 pr-14 focus:outline-none focus:border-amber-400 focus:bg-white/20 transition">
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 text-sm">万円</span>
+        </div>
+        <p class="text-amber-300/60 text-xs mt-2">人数比率: 3</p>
+      </div>
+
+      <div class="bg-rose-500/10 border border-rose-400/25 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-3 h-3 rounded-full bg-rose-400"></span>
+          <label class="text-rose-200 text-xs font-bold uppercase tracking-widest">合宿コース単価（税抜）</label>
+        </div>
+        <div class="relative">
+          <input type="number" id="campPrice" value="110" min="0" oninput="updateAll()"
+            class="w-full bg-white/15 text-white text-xl font-bold placeholder-white/30 border border-rose-400/30 rounded-xl px-4 py-3 pr-14 focus:outline-none focus:border-rose-400 focus:bg-white/20 transition">
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 text-sm">万円</span>
+        </div>
+        <p class="text-rose-300/60 text-xs mt-2">固定: 10名</p>
+      </div>
+    </div>
+
+    <!-- Instructor fee info box -->
+    <div class="bg-purple-500/15 border border-purple-400/30 rounded-xl p-4 mb-4">
+      <div class="flex items-start gap-3">
+        <span class="text-purple-300 text-lg">📄</span>
+        <div>
+          <p class="text-purple-200 font-bold text-sm mb-1">講師報酬（契約書より自動計算）</p>
+          <div class="flex flex-wrap gap-4 text-xs text-purple-300">
+            <span>売上税込 ～5,500万: <strong class="text-white">30%</strong></span>
+            <span>5,500万～1億: <strong class="text-white">25%</strong></span>
+            <span>1億超: <strong class="text-white">20%</strong></span>
+          </div>
+          <p class="text-purple-300/70 text-xs mt-1">＊体験説明会経費（広告費・会場代・交通費・諸経費）の30%は講師負担として報酬から控除</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Course duration (venue cost) -->
+    <div class="bg-cyan-500/10 border border-cyan-400/25 rounded-xl p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-cyan-200 text-sm">🏢</span>
+        <p class="text-cyan-200 font-bold text-sm">会場代（月120万固定）— コース別開催月数</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-emerald-200 text-xs font-semibold mb-2">通常コース 開催月数</label>
+          <div class="relative">
+            <input type="number" id="normalMonths" value="4" min="1" max="24" oninput="updateAll()"
+              class="w-full bg-white/15 text-white border border-emerald-400/30 rounded-xl px-3 py-3 pr-12 focus:outline-none focus:border-emerald-400 transition text-lg font-bold">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-xs">ヶ月</span>
+          </div>
+          <p class="text-white/30 text-xs mt-1">→ 会場費 <span id="venueNormLabel">480</span>万円</p>
+        </div>
+        <div>
+          <label class="block text-amber-200 text-xs font-semibold mb-2">プラチナコース 開催月数</label>
+          <div class="relative">
+            <input type="number" id="platMonths" value="3" min="1" max="24" oninput="updateAll()"
+              class="w-full bg-white/15 text-white border border-amber-400/30 rounded-xl px-3 py-3 pr-12 focus:outline-none focus:border-amber-400 transition text-lg font-bold">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 text-xs">ヶ月</span>
+          </div>
+          <p class="text-white/30 text-xs mt-1">→ 会場費 <span id="venuePlatLabel">840</span>万円</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-1 pl-2">
+    <button id="btn100" onclick="switchTab(100)"
+      class="px-6 py-3 rounded-t-xl font-bold text-sm transition-all bg-white text-indigo-700 shadow-lg">
+      🎯 100% 達成
+    </button>
+    <button id="btn120" onclick="switchTab(120)"
+      class="px-6 py-3 rounded-t-xl font-bold text-sm transition-all bg-white/20 text-white/60 hover:bg-white/30 hover:text-white">
+      🚀 120% 達成
+    </button>
+    <button id="btn150" onclick="switchTab(150)"
+      class="px-6 py-3 rounded-t-xl font-bold text-sm transition-all bg-white/20 text-white/60 hover:bg-white/30 hover:text-white">
+      ⚡ 150% 達成
+    </button>
+  </div>
+
+  <!-- Tab Content -->
+  <div id="tabContent" class="bg-white rounded-b-2xl rounded-tr-2xl shadow-2xl p-6 min-h-48">
+    <p class="text-gray-400 text-center py-12 text-sm">上の数値を入力するとシミュレーションが表示されます</p>
+  </div>
+
+</div>
+
+<script>
+  let currentTab = 100;
+
+  function v(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+  function fmt(n) {
+    if (Math.abs(n) >= 10000) return (n / 10000).toFixed(2) + ' 億円';
+    return n.toFixed(1) + ' 万円';
+  }
+  function fmtM(n) { return n.toFixed(1) + ' 万円'; }
+
+  function calcInstrFee(revenueWithTax) {
+    const A = 5500; const B = 10000;
+    if (revenueWithTax <= A) return revenueWithTax * 0.30;
+    if (revenueWithTax <= B) return A * 0.30 + (revenueWithTax - A) * 0.25;
+    return A * 0.30 + (B - A) * 0.25 + (revenueWithTax - B) * 0.20;
+  }
+
+  function instrFeeRate(revenueWithTax) {
+    if (revenueWithTax <= 5500) return 30;
+    if (revenueWithTax <= 10000) return 25;
+    return 20;
+  }
+
+  function calc(rate) {
+    const target       = v('target');
+    const normalPrice  = v('normalPrice');
+    const platPrice    = v('platPrice');
+    const campPrice    = v('campPrice');
+    const normalMonths = v('normalMonths') || 4;
+    const platMonths   = v('platMonths')   || 7;
+
+    const CAMP = 10;
+    const targetRev = target * rate / 100;
+
+    // Back-calculate participants from target revenue
+    const campRev = CAMP * campPrice;
+    const nonCampTargetRev = targetRev - campRev;
+    const avgP = (2 * normalPrice + 3 * platPrice) / 5;
+    const nonCamp = (avgP > 0 && nonCampTargetRev > 0) ? nonCampTargetRev / avgP : 0;
+    const norm = Math.round(nonCamp * 2 / 5);
+    const plat = Math.round(nonCamp * 3 / 5);
+    const total = norm + plat + CAMP;
+
+    // Revenue (税抜き)
+    const rNorm = norm * normalPrice;
+    const rPlat = plat * platPrice;
+    const rCamp = CAMP * campPrice;
+    const rTotal = rNorm + rPlat + rCamp;
+    const rTotalTax = rTotal * 1.1;
+
+    // Fixed expenses
+    const eAdv        = 1400;
+    const eVenueNorm  = 120 * normalMonths;   // 通常コース会場費
+    const eVenuePlat  = 120 * platMonths;     // プラチナコース会場費
+    const eVenueTotal = eVenueNorm + eVenuePlat;
+    const eCamp       = 10;
+    const ePromo      = 100;
+    const eMisc       = 100;
+    const eTuning     = 20 * (plat + CAMP);
+
+    // 講師報酬（契約書別紙 バックエンド業務）
+    const instrGross     = calcInstrFee(rTotalTax);
+    const appliedRate    = instrFeeRate(rTotalTax);
+    const expForSharing  = eAdv + eVenueTotal + ePromo + eMisc; // 経費30%は講師負担
+    const instrExpBurden = expForSharing * 0.30;
+    const instrNet       = Math.max(0, instrGross - instrExpBurden);
+
+    const eTotal     = eAdv + eVenueTotal + eCamp + ePromo + eMisc + eTuning + instrNet;
+    const profit     = rTotal - eTotal;
+    const profitRate = rTotal > 0 ? profit / rTotal * 100 : 0;
+    const achRate    = target > 0 ? rTotal / target * 100 : 0;
+
+    return {
+      norm, plat, camp: CAMP, total,
+      rNorm, rPlat, rCamp, rTotal, rTotalTax,
+      eAdv, eVenueNorm, eVenuePlat, eVenueTotal, eCamp, ePromo, eMisc, eTuning,
+      instrGross, instrExpBurden, instrNet, appliedRate, expForSharing,
+      eTotal, profit, profitRate, achRate, targetRev,
+      target, normalPrice, platPrice, campPrice, normalMonths, platMonths
+    };
+  }
+
+  function render() {
+    const d = calc(currentTab);
+    const pos = d.profit >= 0;
+    const pColor = pos ? 'text-emerald-600' : 'text-red-600';
+    const pBg    = pos ? 'bg-emerald-50 border-emerald-300' : 'bg-red-50 border-red-300';
+
+    const tabAccent = {
+      100: { badge: 'bg-indigo-600', text: 'text-indigo-700', light: 'bg-indigo-50 border-indigo-200' },
+      120: { badge: 'bg-sky-600',    text: 'text-sky-700',    light: 'bg-sky-50 border-sky-200' },
+      150: { badge: 'bg-purple-600', text: 'text-purple-700', light: 'bg-purple-50 border-purple-200' },
+    }[currentTab];
+
+    const hasInputs = d.target > 0 && d.normalPrice > 0 && d.platPrice > 0 && d.campPrice > 0;
+
+    if (!hasInputs) {
+      document.getElementById('tabContent').innerHTML = `
+        <p class="text-gray-400 text-center py-12 text-sm">目標額と各コースの単価をすべて入力してください</p>
+      `;
+      return;
+    }
+
+    document.getElementById('tabContent').innerHTML = `
+      <!-- Header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6 pb-5 border-b border-gray-100">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center px-4 py-1.5 rounded-full ${tabAccent.badge} text-white text-sm font-black">
+            ${currentTab}% 達成シナリオ
+          </span>
+          <span class="text-gray-400 text-sm">
+            目標売上 <span class="font-bold text-gray-600">${fmtM(d.targetRev)}</span> を達成するための集客プラン
+          </span>
+        </div>
+        <div class="text-right">
+          <p class="text-gray-400 text-xs">実際の達成率</p>
+          <p class="text-2xl font-black ${tabAccent.text}">${d.achRate.toFixed(1)}%</p>
+        </div>
+      </div>
+
+      <!-- Target attendees highlight -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="col-span-2 sm:col-span-1 ${tabAccent.light} border-2 rounded-2xl p-4 text-center">
+          <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">目標集客（合計）</p>
+          <p class="text-4xl font-black ${tabAccent.text}">${d.total}<span class="text-lg font-normal ml-1">名</span></p>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+          <p class="text-emerald-600 text-xs font-bold mb-1">通常コース</p>
+          <p class="text-3xl font-black text-gray-800">${d.norm}<span class="text-sm font-normal ml-1">名</span></p>
+          <p class="text-gray-400 text-xs mt-1">${fmtM(d.normalPrice)} / 名</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+          <p class="text-amber-600 text-xs font-bold mb-1">プラチナコース</p>
+          <p class="text-3xl font-black text-gray-800">${d.plat}<span class="text-sm font-normal ml-1">名</span></p>
+          <p class="text-gray-400 text-xs mt-1">${fmtM(d.platPrice)} / 名</p>
+        </div>
+        <div class="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-center">
+          <p class="text-rose-600 text-xs font-bold mb-1">合宿コース</p>
+          <p class="text-3xl font-black text-gray-800">${d.camp}<span class="text-sm font-normal ml-1">名</span></p>
+          <p class="text-gray-400 text-xs mt-1">${fmtM(d.campPrice)} / 名</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+        <!-- Revenue -->
+        <div>
+          <h3 class="font-bold text-gray-600 text-sm uppercase tracking-widest mb-3">売上内訳（税抜）</h3>
+          <div class="space-y-2.5">
+            <div class="flex justify-between items-center px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
+              <div>
+                <span class="text-emerald-700 font-semibold text-sm">通常コース</span>
+                <span class="text-emerald-400 text-xs ml-2">${d.norm}名 × ${fmtM(d.normalPrice)}</span>
+              </div>
+              <span class="font-bold text-gray-800">${fmtM(d.rNorm)}</span>
+            </div>
+            <div class="flex justify-between items-center px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+              <div>
+                <span class="text-amber-700 font-semibold text-sm">プラチナコース</span>
+                <span class="text-amber-400 text-xs ml-2">${d.plat}名 × ${fmtM(d.platPrice)}</span>
+              </div>
+              <span class="font-bold text-gray-800">${fmtM(d.rPlat)}</span>
+            </div>
+            <div class="flex justify-between items-center px-4 py-3 rounded-xl bg-rose-50 border border-rose-200">
+              <div>
+                <span class="text-rose-700 font-semibold text-sm">合宿コース</span>
+                <span class="text-rose-400 text-xs ml-2">${d.camp}名 × ${fmtM(d.campPrice)}</span>
+              </div>
+              <span class="font-bold text-gray-800">${fmtM(d.rCamp)}</span>
+            </div>
+            <div class="flex justify-between items-center px-4 py-3 rounded-xl ${tabAccent.light} border">
+              <span class="${tabAccent.text} font-bold text-sm">売上合計（税抜）</span>
+              <span class="font-black ${tabAccent.text} text-lg">${fmtM(d.rTotal)}</span>
+            </div>
+            <div class="flex justify-between items-center px-4 py-2 rounded-xl bg-gray-50 border border-gray-100">
+              <span class="text-gray-400 text-xs">売上合計（税込・講師報酬計算用）</span>
+              <span class="text-gray-500 text-sm font-medium">${fmtM(d.rTotalTax)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expenses -->
+        <div>
+          <h3 class="font-bold text-gray-600 text-sm uppercase tracking-widest mb-3">経費内訳</h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-gray-50">
+              <div><span class="text-gray-700 text-sm">広告費（税込）</span><span class="text-gray-400 text-xs ml-2">固定</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eAdv)}</span>
+            </div>
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100">
+              <div><span class="text-gray-700 text-sm">会場代（通常）</span><span class="text-emerald-500 text-xs ml-2">月120万×${d.normalMonths}ヶ月</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eVenueNorm)}</span>
+            </div>
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-amber-50/50 border border-amber-100">
+              <div><span class="text-gray-700 text-sm">会場代（プラチナ）</span><span class="text-amber-500 text-xs ml-2">月120万×${d.platMonths}ヶ月</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eVenuePlat)}</span>
+            </div>
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-gray-50">
+              <div><span class="text-gray-700 text-sm">合宿経費</span><span class="text-gray-400 text-xs ml-2">固定</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eCamp)}</span>
+            </div>
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-gray-50">
+              <div><span class="text-gray-700 text-sm">プロモ交通費</span><span class="text-gray-400 text-xs ml-2">固定</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.ePromo)}</span>
+            </div>
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-gray-50">
+              <div><span class="text-gray-700 text-sm">諸経費</span><span class="text-gray-400 text-xs ml-2">固定</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eMisc)}</span>
+            </div>
+            <div class="flex justify-between items-center px-3 py-2.5 rounded-lg bg-gray-50">
+              <div><span class="text-gray-700 text-sm">音叉代（${d.plat + d.camp}名）</span><span class="text-gray-400 text-xs ml-2">20万×${d.plat + d.camp}名</span></div>
+              <span class="text-gray-800 font-semibold text-sm">${fmtM(d.eTuning)}</span>
+            </div>
+            <!-- Instructor fee breakdown -->
+            <div class="rounded-xl border border-purple-200 overflow-hidden mt-1">
+              <div class="bg-purple-50 px-3 py-2 flex justify-between items-center">
+                <div>
+                  <span class="text-purple-700 text-sm font-semibold">講師報酬（総額）</span>
+                  <span class="text-purple-400 text-xs ml-2">税込売上×${d.appliedRate}%</span>
+                </div>
+                <span class="text-purple-700 font-bold text-sm">${fmtM(d.instrGross)}</span>
+              </div>
+              <div class="bg-purple-50/50 px-3 py-1.5 flex justify-between items-center border-t border-purple-100">
+                <div>
+                  <span class="text-purple-500 text-xs">　▸ 講師の経費負担（控除）</span>
+                  <span class="text-purple-300 text-xs ml-1">経費${fmtM(d.expForSharing)}×30%</span>
+                </div>
+                <span class="text-purple-500 text-xs font-medium">－${fmtM(d.instrExpBurden)}</span>
+              </div>
+              <div class="bg-purple-100 px-3 py-2 flex justify-between items-center border-t border-purple-200">
+                <span class="text-purple-700 text-sm font-bold">講師報酬（甲支払い）</span>
+                <span class="text-purple-700 font-black text-sm">${fmtM(d.instrNet)}</span>
+              </div>
+            </div>
+            <div class="flex justify-between items-center px-3 py-3 rounded-xl bg-red-50 border border-red-200 mt-1">
+              <span class="text-red-600 font-bold text-sm">経費合計</span>
+              <span class="text-red-600 font-black">${fmtM(d.eTotal)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profit Summary -->
+      <div class="rounded-2xl border-2 ${pBg} p-5">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="p-3">
+            <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">売上高（税抜）</p>
+            <p class="text-xl md:text-2xl font-black text-gray-800">${fmt(d.rTotal)}</p>
+          </div>
+          <div class="p-3">
+            <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">経費合計</p>
+            <p class="text-xl md:text-2xl font-black text-red-500">${fmt(d.eTotal)}</p>
+          </div>
+          <div class="p-3 md:border-x border-gray-200">
+            <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">粗利</p>
+            <p class="text-2xl md:text-3xl font-black ${pColor}">${fmt(d.profit)}</p>
+            <p class="text-sm ${pColor} font-semibold mt-0.5">粗利率 ${d.profitRate.toFixed(1)}%</p>
+          </div>
+          <div class="p-3">
+            <p class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">目標達成率</p>
+            <p class="text-xl md:text-2xl font-black ${tabAccent.text}">${d.achRate.toFixed(1)}%</p>
+            <p class="text-xs text-gray-400 mt-0.5">目標: ${fmtM(d.target)}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function switchTab(rate) {
+    currentTab = rate;
+    [100, 120, 150].forEach(r => {
+      const btn = document.getElementById('btn' + r);
+      if (r === rate) {
+        btn.className = 'px-6 py-3 rounded-t-xl font-bold text-sm transition-all bg-white shadow-lg ' +
+          (r === 100 ? 'text-indigo-700' : r === 120 ? 'text-sky-700' : 'text-purple-700');
+      } else {
+        btn.className = 'px-6 py-3 rounded-t-xl font-bold text-sm transition-all bg-white/20 text-white/60 hover:bg-white/30 hover:text-white';
+      }
+    });
+    render();
+  }
+
+  function updateAll() {
+    const nm = parseFloat(document.getElementById('normalMonths').value) || 4;
+    const pm = parseFloat(document.getElementById('platMonths').value)   || 7;
+    document.getElementById('venueNormLabel').textContent = (120 * nm).toFixed(0);
+    document.getElementById('venuePlatLabel').textContent = (120 * pm).toFixed(0);
+    render();
+  }
+
+  render();
+</script>
+</body>
+</html>
