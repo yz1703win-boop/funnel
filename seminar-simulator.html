@@ -70,7 +70,7 @@
             class="w-full bg-white/15 text-white text-xl font-bold placeholder-white/30 border border-rose-400/30 rounded-xl px-4 py-3 pr-14 focus:outline-none focus:border-rose-400 focus:bg-white/20 transition">
           <span class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 text-sm">万円</span>
         </div>
-        <p class="text-rose-300/60 text-xs mt-2">固定10名（申込）／ 入金率 80%</p>
+        <p class="text-rose-300/60 text-xs mt-2">固定11名（入金）／ 申込は自動計算</p>
       </div>
     </div>
 
@@ -156,7 +156,7 @@
   const NORM_PAY_RATE = 0.90;
   const PLAT_PAY_RATE = 0.85;
   const CAMP_PAY_RATE = 0.80;
-  const CAMP_SIGNUP   = 10; // 合宿申込固定
+  const CAMP_PAID_FIXED = 11; // 合宿入金固定
 
   function calcInstrFee(rTax) {
     const A = 5500, B = 10000;
@@ -180,8 +180,9 @@
 
     const targetRev = target * rate / 100;
 
-    // 合宿：申込固定10名 → 入金 = floor(10 × 80%)
-    const campPaid   = Math.floor(CAMP_SIGNUP * CAMP_PAY_RATE); // 8名
+    // 合宿：入金固定11名 → 申込 = ceil(11 ÷ 80%)
+    const campPaid    = CAMP_PAID_FIXED; // 11名
+    const campSignup  = Math.ceil(campPaid / CAMP_PAY_RATE);
     const campRevenue = campPaid * campPrice;
 
     // 非合宿の入金ベース必要人数を逆算（切り上げで目標超え保証）
@@ -199,7 +200,7 @@
     // 申込人数（入金人数 ÷ 入金率、切り上げ）
     const normSignup  = Math.ceil(normPaid / NORM_PAY_RATE);
     const platSignup  = Math.ceil(platPaid / PLAT_PAY_RATE);
-    const totalSignup = normSignup + platSignup + CAMP_SIGNUP;
+    const totalSignup = normSignup + platSignup + campSignup;
 
     // 売上（入金ベース・税抜）
     const rNorm = normPaid * normalPrice;
@@ -234,7 +235,7 @@
     const achRate    = target > 0 ? rTotal / target * 100 : 0;
 
     return {
-      normSignup, platSignup, campSignup: CAMP_SIGNUP, totalSignup,
+      normSignup, platSignup, campSignup, totalSignup,
       normPaid,   platPaid,   campPaid,   totalPaid,
       rNorm, rPlat, rCamp, rTotal, rTotalTax,
       eAdv, eVenueNorm, eVenuePlat, eVenueTotal, eCamp, ePromo, eMisc,
