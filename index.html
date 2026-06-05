@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>セミナー売上シミュレーター v2</title>
+  <title>齋藤先生プロモ マーケティングファネル</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 min-h-screen p-4 md:p-8">
 <div class="max-w-7xl mx-auto">
 
   <div class="text-center mb-8">
-    <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight mb-1">セミナー売上シミュレーター</h1>
-    <p class="text-blue-300 text-sm">申込人数を変更すると目標金額に合わせてプラチナコースが自動調整されます</p>
+    <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight mb-1">齋藤先生プロモ マーケティングファネル</h1>
+    <p class="text-blue-300 text-sm">OPTリスト獲得 → 申込 → 入金 の流れをシミュレーション</p>
   </div>
 
   <!-- Fixed Target -->
@@ -123,13 +123,23 @@
   const NORM_PAY_RATE = 0.90;
   const PLAT_PAY_RATE = 0.85;
   const CAMP_PAY_RATE = 0.80;
-  const CAMP_DEFAULTS = { 100: 11, 120: 20, 150: 30 };
+  const AD_LIST_FIXED = 5500;
 
-  // lastEdited: 'norm' → 通常固定・プラチナAUTO / 'plat' → プラチナ固定・通常AUTO
+  // 引き上げ率（申込ベース）
+  const OPT_RATES = {
+    100: { house: 0.025, ad: 0.010 },
+    120: { house: 0.030, ad: 0.015 },
+    150: { house: 0.040, ad: 0.020 },
+  };
+
+  // campSignup ベース（入金人数デフォルトを申込換算）
+  // 入金11名 → 申込ceil(11/0.8)=14、入金20→25、入金30→38
+  const CAMP_DEFAULTS = { 100: 14, 120: 25, 150: 38 };
+
   let tabState = {
-    100: { normSignup: null, platSignup: null, campPaid: 11, lastEdited: 'norm' },
-    120: { normSignup: null, platSignup: null, campPaid: 20, lastEdited: 'norm' },
-    150: { normSignup: null, platSignup: null, campPaid: 30, lastEdited: 'norm' },
+    100: { normSignup: null, platSignup: null, campSignup: 14, lastEdited: 'norm' },
+    120: { normSignup: null, platSignup: null, campSignup: 25, lastEdited: 'norm' },
+    150: { normSignup: null, platSignup: null, campSignup: 38, lastEdited: 'norm' },
   };
   let currentTab = 100;
 
@@ -139,6 +149,7 @@
     return n.toFixed(1) + ' 万円';
   }
   function fmtM(n) { return n.toFixed(1) + ' 万円'; }
+  function fmtN(n) { return Math.round(n).toLocaleString(); }
 
   function calcInstrFee(rTax) {
     const A = 5500, B = 10000;
@@ -160,14 +171,15 @@
     const platMonths   = v('platMonths')   || 3;
     const targetRev    = TARGET * rate / 100;
     const state        = tabState[rate];
-    const campPaid     = state.campPaid;
-    const campSignup   = Math.ceil(campPaid / CAMP_PAY_RATE);
-    const campRevenue  = campPaid * campPrice;
+
+    // 合宿：申込ベースで入力、入金を逆算
+    const campSignup  = state.campSignup;
+    const campPaid    = Math.floor(campSignup * CAMP_PAY_RATE);
+    const campRevenue = campPaid * campPrice;
 
     let normSignup, normPaid, normRevenue, platSignup, platPaid, platRevenue;
 
     if (state.normSignup === null && state.platSignup === null) {
-      // 初期：2:3 比率で自動配分
       const nonCampTarget = targetRev - campRevenue;
       const avgPaid = (2 * normalPrice + 3 * platPrice) / 5;
       const nonCampPaid = avgPaid > 0 ? Math.ceil(nonCampTarget / avgPaid) : 0;
@@ -180,7 +192,6 @@
       state.normSignup = normSignup;
       state.platSignup = platSignup;
     } else if (state.lastEdited === 'norm') {
-      // 通常固定 → プラチナ AUTO
       normSignup  = state.normSignup;
       normPaid    = Math.floor(normSignup * NORM_PAY_RATE);
       normRevenue = normPaid * normalPrice;
@@ -190,7 +201,6 @@
       platRevenue = platPaid * platPrice;
       state.platSignup = platSignup;
     } else {
-      // プラチナ固定 → 通常 AUTO
       platSignup  = state.platSignup;
       platPaid    = Math.floor(platSignup * PLAT_PAY_RATE);
       platRevenue = platPaid * platPrice;
@@ -224,6 +234,13 @@
     const profit     = rTotal - eTotal;
     const profitRate = rTotal > 0 ? profit / rTotal * 100 : 0;
 
+    // OPTリスト逆算
+    const optRates   = OPT_RATES[rate];
+    const adSignup   = Math.round(AD_LIST_FIXED * optRates.ad);
+    const houseSignup = Math.max(0, totalSignup - adSignup);
+    const houseList  = optRates.house > 0 ? Math.ceil(houseSignup / optRates.house) : 0;
+    const totalList  = houseList + AD_LIST_FIXED;
+
     return {
       rate, targetRev,
       normSignup, normPaid, platSignup, platPaid, campSignup, campPaid,
@@ -233,7 +250,9 @@
       eAdv, eVenueNorm, eVenuePlat, eVenueTotal, eCamp, ePromo, eMisc, eTuning,
       instrGross, instrExpBurden, instrNet, appliedRate, expForSharing,
       eTotal, profit, profitRate,
-      normalPrice, platPrice, campPrice, normalMonths, platMonths
+      normalPrice, platPrice, campPrice, normalMonths, platMonths,
+      // OPT
+      optRates, adSignup, houseSignup, houseList, totalList,
     };
   }
 
@@ -248,10 +267,13 @@
     const pColor = pos ? 'text-emerald-600' : 'text-red-600';
     const pBg    = pos ? 'bg-emerald-50 border-emerald-300' : 'bg-red-50 border-red-300';
     const ta = {
-      100: { badge: 'bg-indigo-600', text: 'text-indigo-700', light: 'bg-indigo-50 border-indigo-200', ring: 'border-indigo-300' },
-      120: { badge: 'bg-sky-600',    text: 'text-sky-700',    light: 'bg-sky-50 border-sky-200',       ring: 'border-sky-300'    },
-      150: { badge: 'bg-purple-600', text: 'text-purple-700', light: 'bg-purple-50 border-purple-200', ring: 'border-purple-300' },
+      100: { badge: 'bg-indigo-600', text: 'text-indigo-700', light: 'bg-indigo-50 border-indigo-200', ring: 'border-indigo-300', accent: '#4338ca' },
+      120: { badge: 'bg-sky-600',    text: 'text-sky-700',    light: 'bg-sky-50 border-sky-200',       ring: 'border-sky-300',    accent: '#0369a1' },
+      150: { badge: 'bg-purple-600', text: 'text-purple-700', light: 'bg-purple-50 border-purple-200', ring: 'border-purple-300', accent: '#7e22ce' },
     }[currentTab];
+
+    const houseRatePct = (d.optRates.house * 100).toFixed(1);
+    const adRatePct    = (d.optRates.ad    * 100).toFixed(1);
 
     document.getElementById('tabContent').innerHTML = `
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-100">
@@ -265,7 +287,114 @@
         </div>
       </div>
 
-      <!-- 申込人数入力 -->
+      <!-- ====== OPTリスト ファネル図解 ====== -->
+      <div class="mb-6">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-lg">📊</span>
+          <h3 class="font-black text-gray-700 text-base uppercase tracking-wide">OPTリスト獲得ファネル</h3>
+          <span class="text-xs text-gray-400 font-normal ml-1">（申込ベースで逆算）</span>
+        </div>
+
+        <!-- ファネル本体 -->
+        <div class="bg-gradient-to-b from-slate-50 to-gray-100 rounded-2xl border border-gray-200 p-5">
+
+          <!-- Step 1: リスト獲得 -->
+          <div class="mb-3">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 text-center">STEP 1 — OPTリスト獲得</p>
+            <div class="grid grid-cols-2 gap-3">
+              <!-- ハウスリスト -->
+              <div class="bg-white rounded-xl border-2 border-blue-300 p-4 text-center shadow-sm">
+                <div class="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full mb-2">
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                  ハウスリスト
+                </div>
+                <p class="text-3xl font-black text-blue-800">${fmtN(d.houseList)}<span class="text-sm font-normal ml-1">名</span></p>
+                <p class="text-blue-500 text-xs mt-1 font-semibold">変動（逆算）</p>
+              </div>
+              <!-- 広告リスト -->
+              <div class="bg-white rounded-xl border-2 border-orange-300 p-4 text-center shadow-sm">
+                <div class="inline-flex items-center gap-1.5 bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full mb-2">
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clip-rule="evenodd"/></svg>
+                  広告リスト
+                </div>
+                <p class="text-3xl font-black text-orange-800">${fmtN(AD_LIST_FIXED)}<span class="text-sm font-normal ml-1">名</span></p>
+                <p class="text-orange-500 text-xs mt-1 font-semibold">固定</p>
+              </div>
+            </div>
+            <!-- 合計リスト -->
+            <div class="mt-3 bg-white rounded-xl border border-gray-300 px-4 py-3 flex items-center justify-between">
+              <span class="text-gray-600 text-sm font-bold">OPTリスト合計</span>
+              <span class="text-xl font-black text-gray-800">${fmtN(d.totalList)} 名</span>
+            </div>
+          </div>
+
+          <!-- 矢印 + 引き上げ率 -->
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="flex flex-col items-center">
+              <div class="w-0.5 h-4 bg-blue-300"></div>
+              <div class="bg-blue-100 border border-blue-300 rounded-lg px-3 py-1.5 text-center">
+                <p class="text-blue-700 text-xs font-black">引き上げ率 ${houseRatePct}%</p>
+                <p class="text-blue-500 text-xs">${fmtN(d.houseList)} × ${houseRatePct}%</p>
+              </div>
+              <div class="w-0.5 h-4 bg-blue-300"></div>
+              <svg class="text-blue-400 w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="w-0.5 h-4 bg-orange-300"></div>
+              <div class="bg-orange-100 border border-orange-300 rounded-lg px-3 py-1.5 text-center">
+                <p class="text-orange-700 text-xs font-black">引き上げ率 ${adRatePct}%</p>
+                <p class="text-orange-500 text-xs">${fmtN(AD_LIST_FIXED)} × ${adRatePct}%</p>
+              </div>
+              <div class="w-0.5 h-4 bg-orange-300"></div>
+              <svg class="text-orange-400 w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </div>
+          </div>
+
+          <!-- Step 2: 申込 -->
+          <div class="mb-3">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 text-center">STEP 2 — 申込（コース別）</p>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div class="bg-blue-50 rounded-xl border border-blue-200 p-3 text-center">
+                <p class="text-blue-600 text-xs font-bold mb-1">ハウスリスト申込</p>
+                <p class="text-2xl font-black text-blue-700">${fmtN(d.houseSignup)}<span class="text-sm font-normal ml-1">名</span></p>
+              </div>
+              <div class="bg-orange-50 rounded-xl border border-orange-200 p-3 text-center">
+                <p class="text-orange-600 text-xs font-bold mb-1">広告リスト申込</p>
+                <p class="text-2xl font-black text-orange-700">${fmtN(d.adSignup)}<span class="text-sm font-normal ml-1">名</span></p>
+              </div>
+            </div>
+            <!-- 申込合計 -->
+            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border-2 border-indigo-200 px-5 py-4 text-center">
+              <p class="text-indigo-500 text-xs font-bold uppercase tracking-widest mb-1">申込合計</p>
+              <p class="text-4xl font-black text-indigo-800">${fmtN(d.totalSignup)}<span class="text-lg font-normal ml-2">名</span></p>
+              <p class="text-indigo-400 text-xs mt-1">通常 ${d.normSignup} + プラチナ ${d.platSignup} + 合宿 ${d.campSignup}</p>
+            </div>
+          </div>
+
+          <!-- 矢印 -->
+          <div class="flex flex-col items-center mb-3">
+            <div class="w-0.5 h-4 bg-gray-300"></div>
+            <div class="bg-gray-100 border border-gray-300 rounded-lg px-4 py-1.5">
+              <p class="text-gray-600 text-xs font-bold">入金率適用（通常90% / プラチナ85% / 合宿80%）</p>
+            </div>
+            <div class="w-0.5 h-4 bg-gray-300"></div>
+            <svg class="text-gray-400 w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+          </div>
+
+          <!-- Step 3: 入金 -->
+          <div>
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-3 text-center">STEP 3 — 入金</p>
+            <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-300 px-5 py-4 text-center">
+              <p class="text-emerald-600 text-xs font-bold uppercase tracking-widest mb-1">入金合計</p>
+              <p class="text-4xl font-black text-emerald-800">${fmtN(d.totalPaid)}<span class="text-lg font-normal ml-2">名</span></p>
+              <p class="text-emerald-500 text-xs mt-1">通常 ${d.normPaid} + プラチナ ${d.platPaid} + 合宿 ${d.campPaid}</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ====== 申込人数 設定 ====== -->
       <div class="bg-gray-50 rounded-2xl border border-gray-200 p-5 mb-6">
         <div class="flex items-center justify-between mb-4">
           <p class="text-gray-500 text-xs font-bold uppercase tracking-widest">📝 申込人数 設定</p>
@@ -289,28 +418,14 @@
             <p class="text-gray-400 text-xs text-center mt-2">→ 入金 <strong class="text-amber-600">${d.platPaid}</strong> 名</p>
           </div>
           <div class="bg-white border-2 border-rose-200 rounded-xl p-4">
-            <p class="text-rose-600 text-xs font-bold mb-2">合宿コース 入金人数</p>
-            <input type="number" id="campPaidInput_${currentTab}" value="${d.campPaid}" min="0"
+            <p class="text-rose-600 text-xs font-bold mb-2">合宿コース 申込人数</p>
+            <input type="number" id="campSignupInput_${currentTab}" value="${d.campSignup}" min="0"
               oninput="onCampChange(${currentTab}, this.value)"
-              class="w-full border border-rose-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-rose-500 text-center">
-            <p class="text-gray-400 text-xs text-center mt-2">→ 申込 <strong class="text-rose-600">${d.campSignup}</strong> 名</p>
+              class="w-full border border-rose-300 rounded-lg px-3 py-3 text-2xl font-black text-gray-800 focus:outline-none focus:border-rose-500 text-center bg-white">
+            <p class="text-gray-400 text-xs text-center mt-2">→ 入金 <strong class="text-rose-600">${d.campPaid}</strong> 名</p>
           </div>
         </div>
         <p class="text-gray-400 text-xs mt-3 text-center">通常 or プラチナを変更した方が固定され、もう一方が目標金額に合わせて自動調整されます</p>
-      </div>
-
-      <!-- 集客人数 -->
-      <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="rounded-2xl border-2 border-blue-200 bg-blue-50 p-5 text-center">
-          <p class="text-blue-500 text-xs font-bold uppercase tracking-widest mb-2">目標集客人数（申込ベース）</p>
-          <p class="text-5xl font-black text-blue-800">${d.totalSignup}<span class="text-xl font-normal ml-1">名</span></p>
-          <p class="text-blue-400 text-xs mt-2">通常${d.normSignup} + プラチナ${d.platSignup} + 合宿${d.campSignup}</p>
-        </div>
-        <div class="rounded-2xl border-2 ${ta.ring} ${ta.light} p-5 text-center">
-          <p class="${ta.text} text-xs font-bold uppercase tracking-widest mb-2">目標集客人数（入金ベース）</p>
-          <p class="text-5xl font-black ${ta.text}">${d.totalPaid}<span class="text-xl font-normal ml-1">名</span></p>
-          <p class="${ta.text} opacity-60 text-xs mt-2">通常${d.normPaid} + プラチナ${d.platPaid} + 合宿${d.campPaid}</p>
-        </div>
       </div>
 
       <!-- コース別 -->
@@ -471,8 +586,7 @@
   }
 
   function onCampChange(rate, val) {
-    tabState[rate].campPaid = Math.max(0, parseInt(val) || 0);
-    // 合宿変更時は lastEdited をそのまま維持（直前に固定した方に合わせる）
+    tabState[rate].campSignup = Math.max(0, parseInt(val) || 0);
     if (currentTab === rate) render();
   }
 
@@ -496,9 +610,9 @@
     document.getElementById('venueNormLabel').textContent = (120 * nm).toFixed(0);
     document.getElementById('venuePlatLabel').textContent = (120 * pm).toFixed(0);
     tabState = {
-      100: { normSignup: null, platSignup: null, campPaid: CAMP_DEFAULTS[100], lastEdited: 'norm' },
-      120: { normSignup: null, platSignup: null, campPaid: CAMP_DEFAULTS[120], lastEdited: 'norm' },
-      150: { normSignup: null, platSignup: null, campPaid: CAMP_DEFAULTS[150], lastEdited: 'norm' },
+      100: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[100], lastEdited: 'norm' },
+      120: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[120], lastEdited: 'norm' },
+      150: { normSignup: null, platSignup: null, campSignup: CAMP_DEFAULTS[150], lastEdited: 'norm' },
     };
     render();
   }
